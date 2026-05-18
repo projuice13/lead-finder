@@ -1,0 +1,82 @@
+{
+  "Manchester": [
+    "Northern Quarter", "Deansgate", "Spinningfields", "Castlefield", "Chinatown",
+    "Oxford Road", "Piccadilly", "Ancoats", "New Islington", "Chorlton", "Didsbury",
+    "West Didsbury", "Withington", "Fallowfield", "Rusholme", "Levenshulme", "Hulme",
+    "Whalley Range", "Burnage", "Northenden", "Sale", "Altrincham", "Stretford",
+    "Urmston", "Stockport", "Prestwich", "Salford", "Cheadle", "Old Trafford", "Timperley"
+  ],
+  "London": [
+    "Shoreditch", "Soho", "Covent Garden", "Camden", "Brixton", "Dalston", "Hackney",
+    "Peckham", "Bermondsey", "Borough", "Notting Hill", "Islington", "Angel",
+    "Clerkenwell", "Fitzrovia", "Marylebone", "Mayfair", "Kensington", "Chelsea",
+    "Fulham", "Clapham", "Battersea", "Tooting", "Wimbledon", "Greenwich", "Deptford",
+    "Lewisham", "Walthamstow", "Stoke Newington", "Crouch End", "Hampstead", "Primrose Hill"
+  ],
+  "Birmingham": [
+    "City Centre", "Digbeth", "Jewellery Quarter", "Moseley", "Kings Heath", "Harborne",
+    "Edgbaston", "Bournville", "Stirchley", "Selly Oak", "Erdington", "Sutton Coldfield",
+    "Hall Green", "Solihull", "Acocks Green", "Bearwood", "Brindleyplace", "Chinatown",
+    "Bordesley", "Handsworth"
+  ],
+  "Leeds": [
+    "City Centre", "Headingley", "Chapel Allerton", "Meanwood", "Kirkstall", "Horsforth",
+    "Roundhay", "Hyde Park", "Burley", "Otley", "Wetherby", "Morley", "Garforth", "Oakwood"
+  ],
+  "Liverpool": [
+    "City Centre", "Bold Street", "Baltic Triangle", "Lark Lane", "Smithdown Road",
+    "Woolton", "Allerton", "Aigburth", "Childwall", "Crosby", "Waterloo", "Formby", "Wirral"
+  ],
+  "Edinburgh": [
+    "Old Town", "New Town", "Leith", "Stockbridge", "Bruntsfield", "Morningside",
+    "Marchmont", "Tollcross", "Grassmarket", "Haymarket", "Portobello", "Newington",
+    "Canonmills", "Dalry", "Corstorphine"
+  ],
+  "Glasgow": [
+    "City Centre", "Merchant City", "West End", "Finnieston", "Partick", "Byres Road",
+    "Shawlands", "Pollokshields", "Govanhill", "Dennistoun", "Maryhill", "Hyndland",
+    "Kelvingrove", "Southside", "Strathbungo"
+  ],
+  "Bristol": [
+    "City Centre", "Clifton", "Gloucester Road", "Stokes Croft", "Bedminster", "Southville",
+    "Harbourside", "Redland", "Cotham", "Montpelier", "St Pauls", "Easton", "Totterdown",
+    "Bishopston", "Westbury Park", "Henleaze"
+  ],
+  "Sheffield": [
+    "City Centre", "Kelham Island", "Division Street / Devonshire Quarter", "Ecclesall Road",
+    "Sharrow Vale", "Broomhill", "Crookes", "Walkley", "Nether Edge", "Meersbrook",
+    "Hillsborough", "London Road / Abbeydale Road", "Hunters Bar", "Dore", "Ranmoor", "Castlegate"
+  ],
+  "Bath": [
+    "City Centre", "Kingsmead Square / Saw Close", "Milsom Street", "Walcot Street / Artisan Quarter",
+    "Abbey Quarter", "Green Park Station", "Oldfield Park / Moorland Road", "Bear Flat",
+    "Widcombe", "Lansdown", "Bathwick", "Combe Down", "Weston", "Larkhall"
+  ],
+  "Oxford": [
+    "City Centre", "Covered Market", "Jericho", "Cowley Road", "Summertown", "Headington",
+    "East Oxford / St Clements", "Botley", "Iffley", "North Oxford / North Parade",
+    "Marston", "Wolvercote", "Osney", "Littlemore"
+  ],
+  "Gloucester": [
+    "City Centre", "Gloucester Quays", "Westgate", "Kingsholm", "Barton Street",
+    "Tuffley", "Hucclecote", "Longlevens", "Quedgeley", "Churchdown"
+  ],
+  "Northampton": [
+    "Town Centre", "Far Cotton", "Abington", "Kingsley", "Kingsthorpe", "Moulton",
+    "Weston Favell", "Duston", "St James", "Billing"
+  ],
+  "Leicester": [
+    "City Centre", "Clarendon Park", "Stoneygate", "Queens Road", "Granby Street",
+    "St Martins / Cathedral Quarter", "Cultural Quarter", "Belgrave / Golden Mile",
+    "Aylestone", "Evington", "Oadby", "Narborough Road", "Braunstone Gate", "Highfields"
+  ],
+  "Coventry": [
+    "City Centre", "FarGo Village", "Earlsdon", "Spon End", "Chapelfields", "Styvechale",
+    "Coundon", "Allesley", "Tile Hill", "Binley", "Cheylesmore", "Finham"
+  ],
+  "Cambridge": [
+    "City Centre", "Market Square", "Mill Road", "King Street / Bridge Street",
+    "Fitzroy Street / Burleigh Street", "Newnham", "Chesterton", "Arbury", "Trumpington",
+    "Cherry Hinton", "Romsey Town", "Castle Hill", "Barnwell", "Histon"
+  ]
+}

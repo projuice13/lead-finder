@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --notion-text: #37352f;
+  --notion-text-secondary: #787774;
+  --notion-text-tertiary: #9b9a97;
+  --notion-bg: #ffffff;
+  --notion-bg-secondary: #f7f7f5;
+  --notion-bg-hover: #f1f1ef;
+  --notion-bg-selected: #e8f0fe;
+  --notion-border: #ebebea;
+  --notion-border-strong: #d9d9d7;
+  --notion-blue: #2383e2;
+  --notion-blue-hover: #1a73d4;
+}
+
+body {
+  color: var(--notion-text);
+  background: var(--notion-bg);
+  font-family: var(--font-inter), ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv11", "ss01";
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Notion-style scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d3d3d0;
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a4a4a0;
+  background-clip: content-box;
+  border: 2px solid transparent;
+}
+
+/* Subtle focus rings */
+*:focus-visible {
+  outline: none;
+}
+
+/* Notion-like smooth transitions globally */
+button, a, input, select, [role="button"] {
+  transition-property: background-color, border-color, color, opacity, box-shadow;
+  transition-duration: 120ms;
+  transition-timing-function: ease-out;
+}
+
+/* Remove default select chevron on Chrome */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239b9a97' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+  padding-right: 32px !important;
+}
+
+@layer utilities {
+  .notion-shadow {
+    box-shadow:
+      rgba(15, 15, 15, 0.05) 0px 0px 0px 1px,
+      rgba(15, 15, 15, 0.1) 0px 3px 6px,
+      rgba(15, 15, 15, 0.2) 0px 9px 24px;
+  }
+  .notion-shadow-sm {
+    box-shadow: rgba(15, 15, 15, 0.05) 0px 0px 0px 1px, rgba(15, 15, 15, 0.05) 0px 2px 4px;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 160ms ease-out;
+}

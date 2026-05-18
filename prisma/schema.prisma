@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  name      String
+  city      String
+  category  String
+  subareas  String   // JSON stringified string[]
+  status    String   @default("draft") // draft | running | complete
+  createdAt DateTime @default(now())
+  leads     Lead[]
+}
+
+model Lead {
+  id        String  @id @default(cuid())
+  placeId   String
+  name      String
+  address   String
+  domain    String
+  email     String?
+  emails    String? // JSON array of { value, confidence, first_name, last_name, position }
+  instagram String?
+  facebook  String?
+  category  String
+  subarea   String
+  city      String
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([placeId, projectId])
+}
