@@ -6,6 +6,36 @@ export interface EnrichmentResult {
   facebook: string | null;
 }
 
+// Generic/social domains that are not business-specific websites
+const GENERIC_DOMAINS = new Set([
+  "facebook.com",
+  "fb.com",
+  "instagram.com",
+  "twitter.com",
+  "x.com",
+  "tiktok.com",
+  "youtube.com",
+  "linkedin.com",
+  "google.com",
+  "maps.google.com",
+  "goo.gl",
+  "linktr.ee",
+  "linktree.com",
+  "squarespace.com",
+  "wix.com",
+  "weebly.com",
+  "wordpress.com",
+  "blogspot.com",
+  "yell.com",
+  "tripadvisor.com",
+  "tripadvisor.co.uk",
+  "yelp.com",
+  "yelp.co.uk",
+  "justeat.co.uk",
+  "deliveroo.co.uk",
+  "ubereats.com",
+]);
+
 export function extractDomain(url: string | null): string | null {
   if (!url) return null;
   try {
@@ -15,7 +45,12 @@ export function extractDomain(url: string | null): string | null {
       normalized = "https://" + normalized;
     }
     const parsed = new URL(normalized);
-    return parsed.hostname.replace(/^www\./, "");
+    const domain = parsed.hostname.replace(/^www\./, "");
+
+    // Reject generic/social domains — not a real business website
+    if (GENERIC_DOMAINS.has(domain)) return null;
+
+    return domain;
   } catch {
     return null;
   }
