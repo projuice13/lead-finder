@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ChevronDown, Loader2, Check } from "lucide-react";
 import clsx from "clsx";
-import { CATEGORIES } from "@/lib/constants";
+import { CATEGORIES, isBlockedChain } from "@/lib/constants";
 import citySubareas from "@/data/uk-city-subareas.json";
 
 const cityMap = citySubareas as Record<string, string[]>;
@@ -151,6 +151,7 @@ export default function SearchWizard() {
     });
 
     const seenPlaceIds = new Set<string>();
+    const seenDomains = new Set<string>();
     const allLeads: unknown[] = [];
     let found = 0;
     let skipped = 0;
@@ -173,6 +174,7 @@ export default function SearchWizard() {
           if (seenPlaceIds.has(place.placeId)) { skipped++; continue; }
           seenPlaceIds.add(place.placeId);
           if (!place.website) { skipped++; continue; }
+          if (isBlockedChain(place.name)) { skipped++; continue; }
 
           await new Promise((r) => setTimeout(r, 200));
           const enrichRes = await fetch("/api/enrich-lead", {
@@ -182,6 +184,8 @@ export default function SearchWizard() {
           });
           const enrichData = await enrichRes.json();
           if (!enrichData.domain) { skipped++; continue; }
+          if (seenDomains.has(enrichData.domain)) { skipped++; continue; }
+          seenDomains.add(enrichData.domain);
 
           allLeads.push({
             placeId: place.placeId,
