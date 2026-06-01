@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
       domain: l.domain,
       email: l.email,
       emails: l.emails,
+      leadStatus: l.leadStatus,
       instagram: l.instagram,
       facebook: l.facebook,
       category: l.category,
