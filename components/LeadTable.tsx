@@ -20,29 +20,6 @@ import {
 import clsx from "clsx";
 import { toast } from "sonner";
 
-export type LeadStatus =
-  | "active"
-  | "hot"
-  | "possible"
-  | "seasonal"
-  | "dormant"
-  | "no_response"
-  | "deactivated"
-  | null;
-
-const LEAD_STATUS_CONFIG: Record<
-  string,
-  { label: string; dot: string; bg: string; text: string }
-> = {
-  active:      { label: "Active",      dot: "bg-[#4dab9a]", bg: "bg-[#edf8f4]", text: "text-[#4dab9a]" },
-  hot:         { label: "Hot",         dot: "bg-[#eb5757]", bg: "bg-[#fdeaea]", text: "text-[#eb5757]" },
-  possible:    { label: "Possible",    dot: "bg-[#2383e2]", bg: "bg-[#e8f0fe]", text: "text-[#2383e2]" },
-  seasonal:    { label: "Seasonal",    dot: "bg-[#9b6dd1]", bg: "bg-[#f3eeff]", text: "text-[#9b6dd1]" },
-  dormant:     { label: "Dormant",     dot: "bg-[#c28b2d]", bg: "bg-[#fbf3db]", text: "text-[#c28b2d]" },
-  no_response: { label: "No Response", dot: "bg-[#9b9a97]", bg: "bg-[#f1f1ef]", text: "text-[#787774]" },
-  deactivated: { label: "Deactivated", dot: "bg-[#d9d9d7]", bg: "bg-[#f1f1ef]", text: "text-[#9b9a97]" },
-};
-
 type HunterVerificationStatus =
   | "valid"
   | "invalid"
@@ -70,7 +47,6 @@ interface Lead {
   domain: string;
   email: string | null;
   emails: string | null;
-  leadStatus: string | null;
   instagram: string | null;
   facebook: string | null;
   category: string;
@@ -105,7 +81,6 @@ export default function LeadTable({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [exporting, setExporting] = useState(false);
@@ -132,14 +107,13 @@ export default function LeadTable({
       );
     }
     if (areaFilter) result = result.filter((l) => l.subarea === areaFilter);
-    if (statusFilter) result = result.filter((l) => (l.leadStatus || "") === statusFilter);
     result = [...result].sort((a, b) => {
       const av = (a[sortKey] || "") as string;
       const bv = (b[sortKey] || "") as string;
       return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
     });
     return result;
-  }, [leads, search, areaFilter, statusFilter, sortKey, sortDir]);
+  }, [leads, search, areaFilter, sortKey, sortDir]);
 
   const toggleSort = useCallback((key: SortKey) => {
     setSortKey((prev) => {
@@ -347,20 +321,6 @@ export default function LeadTable({
           </select>
         </div>
 
-        <div className="flex items-center gap-1 px-2 py-1 rounded hover:bg-[#f1f1ef] transition-colors">
-          <select
-            className="bg-transparent text-[12px] text-[#37352f] focus:outline-none cursor-pointer"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            style={{ backgroundImage: "none", padding: 0 }}
-          >
-            <option value="">All statuses</option>
-            {Object.entries(LEAD_STATUS_CONFIG).map(([value, cfg]) => (
-              <option key={value} value={value}>{cfg.label}</option>
-            ))}
-          </select>
-        </div>
-
         <span className="text-[12px] text-[#9b9a97] ml-2 tabular-nums">
           {filtered.length} {filtered.length === 1 ? "result" : "results"}
         </span>
@@ -391,12 +351,11 @@ export default function LeadTable({
         <table className="w-full table-fixed">
           <colgroup>
             <col style={{ width: "36px" }} />
+            <col style={{ width: "18%" }} />
+            <col style={{ width: "22%" }} />
             <col style={{ width: "16%" }} />
-            <col style={{ width: "18%" }} />
-            <col style={{ width: "14%" }} />
-            <col style={{ width: "18%" }} />
-            <col style={{ width: "110px" }} />
-            <col style={{ width: "70px" }} />
+            <col style={{ width: "20%" }} />
+            <col style={{ width: "80px" }} />
             <col style={{ width: "auto" }} />
           </colgroup>
           <thead className="bg-[#fbfbfa] sticky top-0">
@@ -429,7 +388,6 @@ export default function LeadTable({
                   Email <SortIcon col="email" />
                 </div>
               </th>
-              <th className={clsx(thClass, "border-r border-[#ebebea]")}>Status</th>
               <th className={clsx(thClass, "border-r border-[#ebebea] w-24")}>Social</th>
               <th className={thClass} onClick={() => toggleSort("subarea")}>
                 <div className="flex items-center gap-1">
@@ -478,9 +436,6 @@ export default function LeadTable({
                 <td className="px-0 py-0 border-r border-[#f1f1ef] text-[13px]">
                   <EmailCell lead={lead} onLeadUpdate={onLeadUpdate} />
                 </td>
-                <td className="px-2 py-1.5 border-r border-[#f1f1ef] text-[13px]">
-                  <StatusCell lead={lead} onLeadUpdate={onLeadUpdate} />
-                </td>
                 <td className="px-3 py-2 border-r border-[#f1f1ef] text-[13px]">
                   <div className="flex items-center gap-2">
                     {lead.instagram ? (
@@ -520,7 +475,7 @@ export default function LeadTable({
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-16 text-center text-[13px] text-[#9b9a97]">
+                <td colSpan={7} className="px-3 py-16 text-center text-[13px] text-[#9b9a97]">
                   No leads match your filters
                 </td>
               </tr>
@@ -870,105 +825,4 @@ function VerificationDot({ status }: { status: HunterVerificationStatus }) {
 function VerificationLabel({ status }: { status: HunterVerificationStatus }) {
   const meta = verificationMeta(status);
   return <span className={clsx("font-medium", meta.textColor)}>{meta.label}</span>;
-}
-
-function StatusCell({
-  lead,
-  onLeadUpdate,
-}: {
-  lead: Lead;
-  onLeadUpdate?: (id: string, patch: Partial<Lead>) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  const select = useCallback(
-    async (value: string | null) => {
-      setOpen(false);
-      if (value === lead.leadStatus) return;
-      setSaving(true);
-      try {
-        const res = await fetch(`/api/leads/${lead.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ leadStatus: value }),
-        });
-        if (!res.ok) throw new Error("Save failed");
-        onLeadUpdate?.(lead.id, { leadStatus: value });
-      } catch {
-        toast.error("Failed to update status");
-      } finally {
-        setSaving(false);
-      }
-    },
-    [lead.id, lead.leadStatus, onLeadUpdate]
-  );
-
-  const cfg = lead.leadStatus ? LEAD_STATUS_CONFIG[lead.leadStatus] : null;
-
-  return (
-    <div ref={wrapRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        disabled={saving}
-        className={clsx(
-          "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors cursor-pointer",
-          cfg ? `${cfg.bg} ${cfg.text}` : "bg-[#f1f1ef] text-[#9b9a97]",
-          "hover:opacity-80 disabled:opacity-50"
-        )}
-        title="Set lead status"
-      >
-        {cfg && <span className={clsx("w-1.5 h-1.5 rounded-full shrink-0", cfg.dot)} />}
-        {cfg ? cfg.label : "Set status"}
-      </button>
-
-      {open && (
-        <div className="absolute top-full left-0 mt-1 w-44 bg-white border border-[#ebebea] rounded-lg notion-shadow z-20 py-1">
-          <div className="px-3 py-1.5 text-[11px] font-medium text-[#9b9a97] uppercase tracking-wider border-b border-[#f1f1ef]">
-            Lead status
-          </div>
-          {Object.entries(LEAD_STATUS_CONFIG).map(([value, c]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => select(value)}
-              className={clsx(
-                "w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-[#f7f7f5] transition-colors",
-                lead.leadStatus === value && "bg-[#f1f1ef]"
-              )}
-            >
-              <span className={clsx("w-1.5 h-1.5 rounded-full shrink-0", c.dot)} />
-              <span className={clsx("text-[13px]", c.text)}>{c.label}</span>
-              {lead.leadStatus === value && (
-                <Check className="w-3 h-3 ml-auto text-[#2383e2]" />
-              )}
-            </button>
-          ))}
-          {lead.leadStatus && (
-            <>
-              <div className="border-t border-[#f1f1ef] my-1" />
-              <button
-                type="button"
-                onClick={() => select(null)}
-                className="w-full text-left px-3 py-1.5 text-[13px] text-[#9b9a97] hover:bg-[#f7f7f5] transition-colors"
-              >
-                Clear status
-              </button>
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  );
 }
