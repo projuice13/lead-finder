@@ -113,6 +113,7 @@ export default function SearchWizard() {
     found: 0,
     skipped: 0,
     failed: [] as string[],
+    errorMsg: "",
   });
 
   const handleCityChange = useCallback((c: string) => {
@@ -129,7 +130,7 @@ export default function SearchWizard() {
     const selectedAreas = subareas.filter((a) => selected.has(a));
 
     setIsRunning(true);
-    setProgress({ current: "", done: 0, total: selectedAreas.length, found: 0, skipped: 0, failed: [] });
+    setProgress({ current: "", done: 0, total: selectedAreas.length, found: 0, skipped: 0, failed: [], errorMsg: "" });
 
     // Create project
     const projectRes = await fetch("/api/projects", {
@@ -201,8 +202,10 @@ export default function SearchWizard() {
           found++;
           setProgress((p) => ({ ...p, found, skipped }));
         }
-      } catch {
+      } catch (err) {
         failed.push(area);
+        const msg = err instanceof Error ? err.message : String(err);
+        setProgress((p) => ({ ...p, errorMsg: p.errorMsg || msg }));
       }
 
       // Save batch after each area
@@ -303,6 +306,17 @@ export default function SearchWizard() {
             <Stat value={progress.skipped} label="Skipped" color="#9b9a97" />
             <Stat value={progress.failed.length} label="Failed" color="#eb5757" />
           </div>
+
+          {progress.errorMsg && (
+            <div className="rounded-lg border border-[#f5c2c2] bg-[#fdeaea] px-3 py-2.5">
+              <p className="text-[11px] font-semibold text-[#c0392b] uppercase tracking-wider mb-1">
+                Search error
+              </p>
+              <p className="text-[12px] text-[#7a2a2a] break-words font-mono leading-snug">
+                {progress.errorMsg}
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
