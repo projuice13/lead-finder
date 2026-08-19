@@ -35,6 +35,12 @@ const categoryEmoji: Record<string, string> = {
   "Spa's & Health Centres": "💆",
   "Bakeries": "🥖",
   "Restaurants": "🍽️",
+  "Plumbers": "🔧",
+  "Electricians": "⚡",
+  "Carpenters & Joiners": "🪚",
+  "Cleaning Companies": "🧽",
+  "Accountants": "📊",
+  "Lawyers": "⚖️",
 };
 
 export default function ProjectListRow({

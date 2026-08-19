@@ -78,5 +78,27 @@
     "City Centre", "Market Square", "Mill Road", "King Street / Bridge Street",
     "Fitzroy Street / Burleigh Street", "Newnham", "Chesterton", "Arbury", "Trumpington",
     "Cherry Hinton", "Romsey Town", "Castle Hill", "Barnwell", "Histon"
+  ],
+  "Devon": [
+    "Exeter", "Plymouth", "Torquay", "Paignton", "Exmouth", "Barnstaple",
+    "Newton Abbot", "Tiverton", "Bideford", "Tavistock", "Okehampton", "Dawlish",
+    "Teignmouth", "Ilfracombe", "Honiton", "Totnes", "Sidmouth", "Braunton",
+    "Ottery St Mary", "Kingsbridge"
+  ],
+  "Cornwall": [
+    "Truro", "St Austell", "Newquay", "Falmouth", "Penzance", "Camborne",
+    "Redruth", "Bodmin", "St Ives", "Bude", "Launceston", "Helston",
+    "Liskeard", "Saltash", "Penryn", "Wadebridge", "Hayle", "Looe",
+    "Padstow", "Fowey"
+  ],
+  "Somerset": [
+    "Taunton", "Weston-super-Mare", "Yeovil", "Bridgwater", "Frome", "Wells",
+    "Glastonbury", "Burnham-on-Sea", "Street", "Chard", "Clevedon", "Nailsea",
+    "Minehead", "Shepton Mallet", "Wellington", "Crewkerne", "Wincanton", "Portishead"
+  ],
+  "Wiltshire": [
+    "Swindon", "Salisbury", "Trowbridge", "Chippenham", "Devizes", "Melksham",
+    "Warminster", "Calne", "Marlborough", "Corsham", "Westbury", "Bradford-on-Avon",
+    "Amesbury", "Royal Wootton Bassett", "Malmesbury", "Tidworth", "Wilton", "Cricklade"
   ]
 }

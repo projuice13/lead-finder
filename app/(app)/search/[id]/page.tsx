@@ -24,6 +24,7 @@ interface Lead {
   domain: string;
   email: string | null;
   emails: string | null;
+  leadStatus: string | null;
   instagram: string | null;
   facebook: string | null;
   category: string;
@@ -51,6 +52,12 @@ const categoryEmoji: Record<string, string> = {
   "Spa's & Health Centres": "💆",
   "Bakeries": "🥖",
   "Restaurants": "🍽️",
+  "Plumbers": "🔧",
+  "Electricians": "⚡",
+  "Carpenters & Joiners": "🪚",
+  "Cleaning Companies": "🧽",
+  "Accountants": "📊",
+  "Lawyers": "⚖️",
 };
 
 export default function ResultsPage() {

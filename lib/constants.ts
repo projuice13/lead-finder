@@ -12,6 +12,13 @@ export const CATEGORIES = [
   "Spa's & Health Centres",
   "Bakeries",
   "Restaurants",
+  // Temporary trade & professional-services categories
+  "Plumbers",
+  "Electricians",
+  "Carpenters & Joiners",
+  "Cleaning Companies",
+  "Accountants",
+  "Lawyers",
 ];
 
 // Big chain / franchise names to exclude from results — case-insensitive partial match
