@@ -122,7 +122,7 @@ export default function Sidebar() {
         >
           <ChevronsLeft className="w-3.5 h-3.5" />
         </button>
-        <p className="text-[11px] text-[#9b9a97]">v1.0</p>
+        <p className="text-[11px] text-[#9b9a97]">v1.1</p>
       </div>
     </aside>
   );
