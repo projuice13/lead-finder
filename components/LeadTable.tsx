@@ -16,6 +16,7 @@ import {
   Loader2,
   Check,
   Trash2,
+  MailX,
 } from "lucide-react";
 import clsx from "clsx";
 import { toast } from "sonner";
@@ -142,6 +143,20 @@ export default function LeadTable({
       return next;
     });
   }, []);
+
+  // Leads (within the current filter) that still have no email entered.
+  const missingEmail = useMemo(
+    () => filtered.filter((l) => !l.email || l.email.trim() === ""),
+    [filtered]
+  );
+
+  const selectMissingEmails = useCallback(() => {
+    if (missingEmail.length === 0) {
+      toast.info("Every result already has an email");
+      return;
+    }
+    setSelected(new Set(missingEmail.map((l) => l.id)));
+  }, [missingEmail]);
 
   const handleExport = useCallback(
     async (exportAll: boolean, klaviyo = false) => {
@@ -341,6 +356,18 @@ export default function LeadTable({
         <span className="text-[12px] text-[#9b9a97] ml-2 tabular-nums">
           {filtered.length} {filtered.length === 1 ? "result" : "results"}
         </span>
+
+        {missingEmail.length > 0 && (
+          <button
+            onClick={selectMissingEmails}
+            className="flex items-center gap-1.5 bg-white border border-[#ebebea] text-[#37352f] rounded-md text-[13px] px-2.5 py-1 hover:bg-[#f1f1ef] transition-colors"
+            title="Select every result that has no email address yet"
+          >
+            <MailX className="w-3.5 h-3.5 text-[#9b9a97]" />
+            Select missing emails
+            <span className="text-[#9b9a97] tabular-nums">({missingEmail.length})</span>
+          </button>
+        )}
 
         <div className="ml-auto flex items-center gap-2">
           <button
