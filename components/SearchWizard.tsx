@@ -9,16 +9,30 @@ import { CATEGORIES, isBlockedChain } from "@/lib/constants";
 import citySubareas from "@/data/uk-city-subareas.json";
 
 const cityMap = citySubareas as Record<string, string[]>;
-const CITIES = Object.keys(cityMap).sort();
+const AREAS = Object.keys(cityMap).sort();
 
-// Custom multi-select dropdown for sub-areas
-function SubareaDropdown({
-  subareas,
+// A sub-area is addressed by its parent area + its own name, so towns that share
+// a name across areas never collide. NUL is used as the separator since it can't
+// appear in an area or town name.
+const SEP = "\u0000";
+const keyOf = (area: string, subarea: string) => `${area}${SEP}${subarea}`;
+
+function formatAreas(areas: string[]): string {
+  if (areas.length === 0) return "";
+  if (areas.length === 1) return areas[0];
+  if (areas.length === 2) return `${areas[0]} & ${areas[1]}`;
+  if (areas.length === 3) return `${areas[0]}, ${areas[1]} & ${areas[2]}`;
+  return `${areas[0]}, ${areas[1]} & ${areas.length - 2} more`;
+}
+
+// Flat multi-select used for the top-level areas (counties / cities).
+function AreaDropdown({
+  options,
   selected,
   onChange,
   disabled,
 }: {
-  subareas: string[];
+  options: string[];
   selected: Set<string>;
   onChange: (next: Set<string>) => void;
   disabled: boolean;
@@ -41,23 +55,20 @@ function SubareaDropdown({
     onChange(next);
   };
 
-  const selectAll = () => onChange(new Set(subareas));
-  const clearAll = () => onChange(new Set());
-
   const label =
-    subareas.length === 0
-      ? "Select a city first"
-      : selected.size === 0
-      ? "Select sub-areas..."
-      : selected.size === subareas.length
-      ? `All ${subareas.length} areas`
-      : `${selected.size} of ${subareas.length} areas`;
+    selected.size === 0
+      ? "Select areas..."
+      : selected.size === options.length
+      ? `All ${options.length} areas`
+      : selected.size === 1
+      ? [...selected][0]
+      : `${selected.size} areas`;
 
   return (
     <div ref={ref} className="relative">
       <button
         type="button"
-        disabled={disabled || subareas.length === 0}
+        disabled={disabled}
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center justify-between border border-[#ebebea] rounded-md px-3 py-2 text-[13px] bg-white text-left hover:border-[#d9d9d7] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:border-[#2383e2] focus:ring-2 focus:ring-[#2383e2]/15 transition-all h-[38px]"
       >
@@ -70,14 +81,14 @@ function SubareaDropdown({
       {open && (
         <div className="absolute z-50 top-full left-0 mt-1 w-72 bg-white border border-[#ebebea] rounded-lg notion-shadow py-1 max-h-80 overflow-y-auto animate-fade-in">
           <div className="flex items-center gap-2 px-3 py-2 border-b border-[#ebebea] sticky top-0 bg-white">
-            <button onClick={selectAll} className="text-[12px] font-medium text-[#2383e2] hover:underline">Select all</button>
+            <button onClick={() => onChange(new Set(options))} className="text-[12px] font-medium text-[#2383e2] hover:underline">Select all</button>
             <span className="text-[#ebebea]">·</span>
-            <button onClick={clearAll} className="text-[12px] font-medium text-[#787774] hover:text-[#37352f]">Clear</button>
+            <button onClick={() => onChange(new Set())} className="text-[12px] font-medium text-[#787774] hover:text-[#37352f]">Clear</button>
             <span className="ml-auto text-[11px] text-[#9b9a97] tabular-nums">
-              {selected.size}/{subareas.length}
+              {selected.size}/{options.length}
             </span>
           </div>
-          {subareas.map((area) => (
+          {options.map((area) => (
             <button
               key={area}
               type="button"
@@ -99,11 +110,112 @@ function SubareaDropdown({
   );
 }
 
+// Grouped multi-select for sub-areas: when more than one area is picked the
+// towns are shown under their area heading. Selection is keyed by area+town.
+function SubareaDropdown({
+  groups,
+  selectedKeys,
+  onChange,
+  disabled,
+}: {
+  groups: { area: string; subareas: string[] }[];
+  selectedKeys: Set<string>;
+  onChange: (next: Set<string>) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const allKeys = groups.flatMap((g) => g.subareas.map((s) => keyOf(g.area, s)));
+  const total = allKeys.length;
+  const showHeaders = groups.length > 1;
+
+  const toggle = (key: string) => {
+    const next = new Set(selectedKeys);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    onChange(next);
+  };
+
+  const label =
+    total === 0
+      ? "Select an area first"
+      : selectedKeys.size === 0
+      ? "Select sub-areas..."
+      : selectedKeys.size === total
+      ? `All ${total} sub-areas`
+      : `${selectedKeys.size} of ${total} sub-areas`;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        disabled={disabled || total === 0}
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between border border-[#ebebea] rounded-md px-3 py-2 text-[13px] bg-white text-left hover:border-[#d9d9d7] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:border-[#2383e2] focus:ring-2 focus:ring-[#2383e2]/15 transition-all h-[38px]"
+      >
+        <span className={clsx("truncate", selectedKeys.size === 0 ? "text-[#9b9a97]" : "text-[#37352f]")}>
+          {label}
+        </span>
+        <ChevronDown className={clsx("w-3.5 h-3.5 text-[#9b9a97] transition-transform shrink-0 ml-2", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <div className="absolute z-50 top-full left-0 mt-1 w-72 bg-white border border-[#ebebea] rounded-lg notion-shadow py-1 max-h-80 overflow-y-auto animate-fade-in">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-[#ebebea] sticky top-0 bg-white">
+            <button onClick={() => onChange(new Set(allKeys))} className="text-[12px] font-medium text-[#2383e2] hover:underline">Select all</button>
+            <span className="text-[#ebebea]">·</span>
+            <button onClick={() => onChange(new Set())} className="text-[12px] font-medium text-[#787774] hover:text-[#37352f]">Clear</button>
+            <span className="ml-auto text-[11px] text-[#9b9a97] tabular-nums">
+              {selectedKeys.size}/{total}
+            </span>
+          </div>
+          {groups.map((g) => (
+            <div key={g.area}>
+              {showHeaders && (
+                <div className="px-3 pt-2 pb-1 text-[11px] font-semibold text-[#9b9a97] uppercase tracking-wider">
+                  {g.area}
+                </div>
+              )}
+              {g.subareas.map((sub) => {
+                const key = keyOf(g.area, sub);
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => toggle(key)}
+                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[13px] text-[#37352f] hover:bg-[#f1f1ef] text-left"
+                  >
+                    <div className={clsx(
+                      "w-[15px] h-[15px] rounded-[3px] border flex items-center justify-center shrink-0 transition-colors",
+                      selectedKeys.has(key) ? "bg-[#2383e2] border-[#2383e2]" : "border-[#d9d9d7]"
+                    )}>
+                      {selectedKeys.has(key) && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
+                    </div>
+                    {sub}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SearchWizard() {
   const router = useRouter();
-  const [city, setCity] = useState("");
-  const [subareas, setSubareas] = useState<string[]>([]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selectedAreas, setSelectedAreas] = useState<Set<string>>(new Set());
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [category, setCategory] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState({
@@ -116,31 +228,56 @@ export default function SearchWizard() {
     errorMsg: "",
   });
 
-  const handleCityChange = useCallback((c: string) => {
-    setCity(c);
-    const areas = cityMap[c] || [];
-    setSubareas(areas);
-    setSelected(new Set(areas));
-  }, []);
+  // When the set of areas changes, keep existing sub-area choices for areas that
+  // were already selected, and select every town for newly-added areas.
+  const handleAreasChange = useCallback((nextAreas: Set<string>) => {
+    setSelectedKeys((prev) => {
+      const next = new Set<string>();
+      for (const area of nextAreas) {
+        const wasSelected = selectedAreas.has(area);
+        for (const sub of cityMap[area] || []) {
+          const k = keyOf(area, sub);
+          if (!wasSelected || prev.has(k)) next.add(k);
+        }
+      }
+      return next;
+    });
+    setSelectedAreas(nextAreas);
+  }, [selectedAreas]);
 
-  const canStart = city && selected.size > 0 && category && !isRunning;
+  // Groups shown in the sub-area dropdown, in sorted area order.
+  const groups = AREAS.filter((a) => selectedAreas.has(a)).map((area) => ({
+    area,
+    subareas: cityMap[area] || [],
+  }));
+
+  const canStart = selectedAreas.size > 0 && selectedKeys.size > 0 && category && !isRunning;
 
   const handleStart = useCallback(async () => {
     if (!canStart) return;
-    const selectedAreas = subareas.filter((a) => selected.has(a));
+
+    // Expand the selection into (area, sub-area) pairs to search, in a stable order.
+    const pairs: { area: string; sub: string }[] = [];
+    for (const area of AREAS.filter((a) => selectedAreas.has(a))) {
+      for (const sub of cityMap[area] || []) {
+        if (selectedKeys.has(keyOf(area, sub))) pairs.push({ area, sub });
+      }
+    }
+    const areasInUse = [...new Set(pairs.map((p) => p.area))];
+    const areaLabel = formatAreas(areasInUse);
 
     setIsRunning(true);
-    setProgress({ current: "", done: 0, total: selectedAreas.length, found: 0, skipped: 0, failed: [], errorMsg: "" });
+    setProgress({ current: "", done: 0, total: pairs.length, found: 0, skipped: 0, failed: [], errorMsg: "" });
 
     // Create project
     const projectRes = await fetch("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: `${city} — ${category}`,
-        city,
+        name: `${areaLabel} — ${category}`,
+        city: areaLabel,
         category,
-        subareas: selectedAreas,
+        subareas: pairs.map((p) => p.sub),
       }),
     });
     const { project } = await projectRes.json();
@@ -158,15 +295,17 @@ export default function SearchWizard() {
     let skipped = 0;
     const failed: string[] = [];
 
-    for (let i = 0; i < selectedAreas.length; i++) {
-      const area = selectedAreas[i];
-      setProgress((p) => ({ ...p, current: area, done: i }));
+    for (let i = 0; i < pairs.length; i++) {
+      const { area, sub } = pairs[i];
+      // Label the progress with the area when searching across several of them.
+      const current = areasInUse.length > 1 ? `${sub}, ${area}` : sub;
+      setProgress((p) => ({ ...p, current, done: i }));
 
       try {
         const placesRes = await fetch("/api/search-places", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ subarea: area, city, category }),
+          body: JSON.stringify({ subarea: sub, city: area, category }),
         });
         const placesData = await placesRes.json();
         if (!placesRes.ok) throw new Error(placesData.error);
@@ -196,19 +335,19 @@ export default function SearchWizard() {
             instagram: enrichData.instagram || null,
             facebook: enrichData.facebook || null,
             category,
-            subarea: area,
-            city,
+            subarea: sub,
+            city: area,
           });
           found++;
           setProgress((p) => ({ ...p, found, skipped }));
         }
       } catch (err) {
-        failed.push(area);
+        failed.push(current);
         const msg = err instanceof Error ? err.message : String(err);
         setProgress((p) => ({ ...p, errorMsg: p.errorMsg || msg }));
       }
 
-      // Save batch after each area
+      // Save batch after each sub-area
       if (allLeads.length > 0) {
         await fetch(`/api/projects/${project.id}/leads`, {
           method: "POST",
@@ -229,30 +368,27 @@ export default function SearchWizard() {
 
     toast.success(`Search complete — ${found} leads found`);
     router.push(`/search/${project.id}`);
-  }, [canStart, subareas, selected, city, category, router]);
+  }, [canStart, selectedAreas, selectedKeys, category, router]);
 
   return (
     <div>
       {/* Form card */}
       <div className="border border-[#ebebea] rounded-xl bg-white p-5 mb-4 notion-shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-3 items-end">
-          <Field label="City">
-            <select
-              className="w-full border border-[#ebebea] rounded-md px-3 py-2 text-[13px] text-[#37352f] bg-white hover:border-[#d9d9d7] focus:outline-none focus:border-[#2383e2] focus:ring-2 focus:ring-[#2383e2]/15 transition-all disabled:opacity-50"
-              value={city}
-              onChange={(e) => handleCityChange(e.target.value)}
+          <Field label="Areas">
+            <AreaDropdown
+              options={AREAS}
+              selected={selectedAreas}
+              onChange={handleAreasChange}
               disabled={isRunning}
-            >
-              <option value="">Select city...</option>
-              {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+            />
           </Field>
 
           <Field label="Sub-areas">
             <SubareaDropdown
-              subareas={subareas}
-              selected={selected}
-              onChange={setSelected}
+              groups={groups}
+              selectedKeys={selectedKeys}
+              onChange={setSelectedKeys}
               disabled={isRunning}
             />
           </Field>
