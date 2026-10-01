@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
         last_name: null,
         position: "Listed on website",
         verification_status: null,
+        source: "website",
       }));
 
     const merged = [...searchResult.emails, ...scrapedOnly];

@@ -38,6 +38,7 @@ interface HunterEmailMeta {
   last_name: string | null;
   position: string | null;
   verification_status: HunterVerificationStatus;
+  source?: "hunter" | "website" | null;
 }
 
 interface Lead {
@@ -202,10 +203,26 @@ export default function LeadTable({
         const data = await res.json();
         const emails: HunterEmailMeta[] = data.emails || [];
 
-        // Strict auto-pick: only `valid` (SMTP-verified) — prevents Klaviyo bounces
+        // Auto-pick, in order of trust:
+        //  1. A Hunter SMTP-`valid` address (highest confidence first).
+        //  2. Else an address scraped off the business's own site on its own
+        //     domain — the business published it themselves, so we trust it even
+        //     when Hunter returns `accept_all` for a catch-all mail server.
         const verified = emails.filter((e) => e.verification_status === "valid");
         verified.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
-        const primary = verified[0]?.value || null;
+        let primary = verified[0]?.value || null;
+
+        if (!primary && lead.domain) {
+          const bare = lead.domain.replace(/^www\./, "").toLowerCase();
+          const sameDomainScraped = emails.find(
+            (e) =>
+              e.source === "website" &&
+              e.value.toLowerCase().endsWith("@" + bare) &&
+              e.verification_status !== "invalid" &&
+              e.verification_status !== "disposable"
+          );
+          if (sameDomainScraped) primary = sameDomainScraped.value;
+        }
 
         const patchBody: { email?: string | null; emails: HunterEmailMeta[] } = {
           emails,
@@ -237,7 +254,7 @@ export default function LeadTable({
 
     setHunting(false);
     const parts: string[] = [];
-    if (verifiedFound > 0) parts.push(`${verifiedFound} verified`);
+    if (verifiedFound > 0) parts.push(`${verifiedFound} with email`);
     if (unverifiedOnly > 0) parts.push(`${unverifiedOnly} unverified only`);
     if (failed > 0) parts.push(`${failed} failed`);
 

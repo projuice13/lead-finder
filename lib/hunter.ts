@@ -16,6 +16,8 @@ export interface HunterEmail {
   last_name: string | null;
   position: string | null;
   verification_status: HunterVerificationStatus;
+  // Where the address came from: Hunter's index, or scraped off the site itself.
+  source: "hunter" | "website" | null;
 }
 
 export interface HunterDomainResult {
@@ -56,6 +58,7 @@ export async function hunterDomainSearch(domain: string): Promise<HunterDomainRe
           last_name: typeof e.last_name === "string" ? e.last_name : null,
           position: typeof e.position === "string" ? e.position : null,
           verification_status: status as HunterVerificationStatus,
+          source: "hunter",
         };
       })
     : [];
@@ -99,13 +102,39 @@ export async function hunterEmailVerify(email: string): Promise<HunterVerifyResu
 }
 
 /**
- * Pick the primary email — strict: only `valid` (SMTP-verified).
- * Returns null if no verified email exists, so the user decides whether
- * to promote an unverified one manually (avoids Klaviyo bounces).
+ * Pick the primary email, in order of trust:
+ *   1. A Hunter SMTP-`valid` address (highest confidence first).
+ *   2. Failing that, an address scraped off the business's own website on its
+ *      own domain. The business published it themselves, so we trust it even
+ *      when Hunter can't confirm deliverability (small-business catch-all
+ *      servers return `accept_all`, never `valid`). This saves manually
+ *      promoting emails that are plainly listed on the site.
+ * Returns null if neither exists.
+ *
+ * `domain` is the business domain, used to tell a same-domain address
+ * (info@theirshop.co.uk) from an off-domain one (a gmail/outlook address).
  */
-export function pickPrimaryEmail(emails: HunterEmail[]): string | null {
+export function pickPrimaryEmail(
+  emails: HunterEmail[],
+  domain?: string | null
+): string | null {
   const verified = emails.filter((e) => e.verification_status === "valid");
-  if (verified.length === 0) return null;
-  verified.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
-  return verified[0]?.value || null;
+  if (verified.length > 0) {
+    verified.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
+    return verified[0]?.value || null;
+  }
+
+  if (domain) {
+    const bare = domain.replace(/^www\./, "").toLowerCase();
+    const sameDomainScraped = emails.find(
+      (e) =>
+        e.source === "website" &&
+        e.value.toLowerCase().endsWith("@" + bare) &&
+        e.verification_status !== "invalid" &&
+        e.verification_status !== "disposable"
+    );
+    if (sameDomainScraped) return sameDomainScraped.value;
+  }
+
+  return null;
 }
