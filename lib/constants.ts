@@ -12,6 +12,12 @@ export const CATEGORIES = [
   "Spa's & Health Centres",
   "Bakeries",
   "Restaurants",
+  "Juice Bars",
+  "Artisan Ice Cream Manufacturers",
+  "Smoothie, Acai and Poke Bowl bars",
+  "Jam manufacturers",
+  "Event catering",
+  "Gelato Parlours",
   // Temporary trade & professional-services categories
   "Plumbers",
   "Electricians",
