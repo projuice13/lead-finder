@@ -25,6 +25,21 @@ function formatAreas(areas: string[]): string {
   return `${areas[0]}, ${areas[1]} & ${areas.length - 2} more`;
 }
 
+// fetch that gives up after `ms` so one hung request can't freeze the whole run.
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  ms: number
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 // Flat multi-select used for the top-level areas (counties / cities).
 function AreaDropdown({
   options,
@@ -269,105 +284,143 @@ export default function SearchWizard() {
     setIsRunning(true);
     setProgress({ current: "", done: 0, total: pairs.length, found: 0, skipped: 0, failed: [], errorMsg: "" });
 
-    // Create project
-    const projectRes = await fetch("/api/projects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: `${areaLabel} — ${category}`,
-        city: areaLabel,
-        category,
-        subareas: pairs.map((p) => p.sub),
-      }),
-    });
-    const { project } = await projectRes.json();
+    let projectId: string | null = null;
+    try {
+      // Create project
+      const projectRes = await fetchWithTimeout("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: `${areaLabel} — ${category}`,
+          city: areaLabel,
+          category,
+          subareas: pairs.map((p) => p.sub),
+        }),
+      }, 20000);
+      const { project } = await projectRes.json();
+      if (!project?.id) throw new Error("Could not create the project");
+      projectId = project.id;
 
-    await fetch(`/api/projects/${project.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "running" }),
-    });
+      await fetchWithTimeout(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "running" }),
+      }, 15000).catch(() => {});
 
-    const seenPlaceIds = new Set<string>();
-    const seenDomains = new Set<string>();
-    const allLeads: unknown[] = [];
-    let found = 0;
-    let skipped = 0;
-    const failed: string[] = [];
+      const seenPlaceIds = new Set<string>();
+      const seenDomains = new Set<string>();
+      // Leads collected but not yet saved to the server. Cleared after each
+      // successful save so we never re-send the whole growing list (which got
+      // slower every round and could time out on big multi-area runs).
+      let pendingLeads: unknown[] = [];
+      let found = 0;
+      let skipped = 0;
+      const failed: string[] = [];
 
-    for (let i = 0; i < pairs.length; i++) {
-      const { area, sub } = pairs[i];
-      // Label the progress with the area when searching across several of them.
-      const current = areasInUse.length > 1 ? `${sub}, ${area}` : sub;
-      setProgress((p) => ({ ...p, current, done: i }));
+      for (let i = 0; i < pairs.length; i++) {
+        const { area, sub } = pairs[i];
+        // Label the progress with the area when searching across several of them.
+        const current = areasInUse.length > 1 ? `${sub}, ${area}` : sub;
+        setProgress((p) => ({ ...p, current, done: i }));
 
-      try {
-        const placesRes = await fetch("/api/search-places", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ subarea: sub, city: area, category }),
-        });
-        const placesData = await placesRes.json();
-        if (!placesRes.ok) throw new Error(placesData.error);
-
-        for (const place of placesData.results || []) {
-          if (seenPlaceIds.has(place.placeId)) { skipped++; continue; }
-          seenPlaceIds.add(place.placeId);
-          if (!place.website) { skipped++; continue; }
-          if (isBlockedChain(place.name)) { skipped++; continue; }
-
-          await new Promise((r) => setTimeout(r, 200));
-          const enrichRes = await fetch("/api/enrich-lead", {
+        try {
+          const placesRes = await fetchWithTimeout("/api/search-places", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ website: place.website }),
-          });
-          const enrichData = await enrichRes.json();
-          if (!enrichData.domain) { skipped++; continue; }
-          if (seenDomains.has(enrichData.domain)) { skipped++; continue; }
-          seenDomains.add(enrichData.domain);
+            body: JSON.stringify({ subarea: sub, city: area, category }),
+          }, 30000);
+          const placesData = await placesRes.json();
+          if (!placesRes.ok) throw new Error(placesData.error);
 
-          allLeads.push({
-            placeId: place.placeId,
-            name: place.name,
-            address: place.address,
-            domain: enrichData.domain,
-            instagram: enrichData.instagram || null,
-            facebook: enrichData.facebook || null,
-            category,
-            subarea: sub,
-            city: area,
-          });
-          found++;
-          setProgress((p) => ({ ...p, found, skipped }));
+          for (const place of placesData.results || []) {
+            if (seenPlaceIds.has(place.placeId)) { skipped++; continue; }
+            seenPlaceIds.add(place.placeId);
+            if (!place.website) { skipped++; continue; }
+            if (isBlockedChain(place.name)) { skipped++; continue; }
+
+            // A single slow/broken site must not stall the whole run.
+            try {
+              await new Promise((r) => setTimeout(r, 200));
+              const enrichRes = await fetchWithTimeout("/api/enrich-lead", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ website: place.website }),
+              }, 15000);
+              const enrichData = await enrichRes.json();
+              if (!enrichData.domain) { skipped++; continue; }
+              if (seenDomains.has(enrichData.domain)) { skipped++; continue; }
+              seenDomains.add(enrichData.domain);
+
+              pendingLeads.push({
+                placeId: place.placeId,
+                name: place.name,
+                address: place.address,
+                domain: enrichData.domain,
+                instagram: enrichData.instagram || null,
+                facebook: enrichData.facebook || null,
+                category,
+                subarea: sub,
+                city: area,
+              });
+              found++;
+              setProgress((p) => ({ ...p, found, skipped }));
+            } catch {
+              // Enrichment timed out or failed for this one place — skip it.
+              skipped++;
+            }
+          }
+        } catch (err) {
+          failed.push(current);
+          const msg = err instanceof Error ? err.message : String(err);
+          setProgress((p) => ({ ...p, errorMsg: p.errorMsg || msg }));
         }
-      } catch (err) {
-        failed.push(current);
-        const msg = err instanceof Error ? err.message : String(err);
-        setProgress((p) => ({ ...p, errorMsg: p.errorMsg || msg }));
+
+        // Save only the leads gathered since the last save. On failure, keep
+        // them buffered to retry on the next round (the upsert ignores dupes).
+        if (pendingLeads.length > 0) {
+          try {
+            const saveRes = await fetchWithTimeout(`/api/projects/${projectId}/leads`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ leads: pendingLeads }),
+            }, 30000);
+            if (saveRes.ok) pendingLeads = [];
+          } catch {
+            // keep pendingLeads for the next round
+          }
+        }
+
+        setProgress((p) => ({ ...p, done: i + 1, found, skipped, failed: [...failed] }));
+        await new Promise((r) => setTimeout(r, 500));
       }
 
-      // Save batch after each sub-area
-      if (allLeads.length > 0) {
-        await fetch(`/api/projects/${project.id}/leads`, {
+      // Flush anything still buffered from the final rounds.
+      if (pendingLeads.length > 0) {
+        await fetchWithTimeout(`/api/projects/${projectId}/leads`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ leads: allLeads }),
-        });
+          body: JSON.stringify({ leads: pendingLeads }),
+        }, 30000).catch(() => {});
       }
 
-      setProgress((p) => ({ ...p, done: i + 1, found, skipped, failed: [...failed] }));
-      await new Promise((r) => setTimeout(r, 500));
+      toast.success(`Search complete — ${found} leads found`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setProgress((p) => ({ ...p, errorMsg: p.errorMsg || msg }));
+      toast.error(`Search stopped: ${msg}`);
+    } finally {
+      // Always mark the project done and release the UI, even if something threw,
+      // so a project can't be left stuck on "running".
+      if (projectId) {
+        await fetchWithTimeout(`/api/projects/${projectId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "complete" }),
+        }, 15000).catch(() => {});
+      }
+      setIsRunning(false);
+      if (projectId) router.push(`/search/${projectId}`);
     }
-
-    await fetch(`/api/projects/${project.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "complete" }),
-    });
-
-    toast.success(`Search complete — ${found} leads found`);
-    router.push(`/search/${project.id}`);
   }, [canStart, selectedAreas, selectedKeys, category, router]);
 
   return (
