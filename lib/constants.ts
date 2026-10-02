@@ -27,6 +27,26 @@ export const CATEGORIES = [
   "Lawyers",
 ];
 
+// Per-category search tuning. Google Places text search is fuzzy, so for niche
+// categories the bare label pulls in loosely-related places (e.g. ordinary cafes
+// for "smoothie bars"). A config here lets us:
+//   - send several targeted queries instead of the one label, then
+//   - keep only places whose NAME or Google place-TYPE actually matches.
+// Categories with no entry behave exactly as before: query = the label, no filter.
+export interface CategorySearch {
+  queries?: string[];   // search strings sent to Google (default: [category label])
+  nameMatch?: string[]; // keep if the place name contains any of these (lowercased, accent-stripped)
+  typeMatch?: string[]; // keep if the place's Google types include any of these
+}
+
+export const CATEGORY_SEARCH: Record<string, CategorySearch> = {
+  "Smoothie, Acai and Poke Bowl bars": {
+    queries: ["smoothie bar", "acai bowl shop", "poke bowl bar", "juice and smoothie bar"],
+    nameMatch: ["smoothie", "acai", "poke", "juice", "bowl"],
+    typeMatch: ["acai_shop", "juice_shop"],
+  },
+};
+
 // Big chain / franchise names to exclude from results — case-insensitive partial match
 export const BLOCKED_CHAINS = [
   // Supermarkets

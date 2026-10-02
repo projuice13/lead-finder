@@ -3,6 +3,7 @@ export interface PlaceResult {
   name: string;
   address: string;
   website: string | null;
+  types: string[];
 }
 
 export async function searchPlaces(
@@ -23,7 +24,7 @@ export async function searchPlaces(
         "Content-Type": "application/json",
         "X-Goog-Api-Key": apiKey,
         "X-Goog-FieldMask":
-          "places.id,places.displayName,places.formattedAddress,places.websiteUri",
+          "places.id,places.displayName,places.formattedAddress,places.websiteUri,places.types",
       },
       body: JSON.stringify({
         textQuery: searchQuery,
@@ -51,5 +52,6 @@ export async function searchPlaces(
     name: (place.displayName as { text: string })?.text || "",
     address: (place.formattedAddress as string) || "",
     website: (place.websiteUri as string) || null,
+    types: Array.isArray(place.types) ? (place.types as string[]) : [],
   }));
 }
