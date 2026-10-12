@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { Plus, LayoutGrid, List, Search, Download, X, Sparkles } from "lucide-react";
+import { Plus, LayoutGrid, List, Search, Download, X, Sparkles, Trash2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import clsx from "clsx";
 import { toast } from "sonner";
@@ -29,6 +29,8 @@ export default function DashboardPage() {
   const [query, setQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [exporting, setExporting] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const selecting = selectedIds.size > 0;
 
   useEffect(() => {
@@ -69,6 +71,33 @@ export default function DashboardPage() {
         : new Set(filtered.map((p) => p.id))
     );
   }, [filtered]);
+
+  const handleBulkDelete = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/projects/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Delete failed" }));
+        throw new Error(err.error || "Delete failed");
+      }
+      const data = await res.json();
+      const idSet = new Set(ids);
+      setProjects((prev) => prev.filter((p) => !idSet.has(p.id)));
+      setSelectedIds(new Set());
+      setConfirmingDelete(false);
+      toast.success(`Deleted ${data.deleted} ${data.deleted === 1 ? "search" : "searches"}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setDeleting(false);
+    }
+  }, [selectedIds]);
 
   const handleBulkExport = useCallback(async (klaviyo = false) => {
     setExporting(true);
@@ -134,7 +163,7 @@ export default function DashboardPage() {
           </div>
 
           <button
-            onClick={selecting ? () => setSelectedIds(new Set()) : toggleSelectAll}
+            onClick={selecting ? () => { setSelectedIds(new Set()); setConfirmingDelete(false); } : toggleSelectAll}
             className={clsx(
               "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-medium border transition-colors",
               selecting
@@ -244,14 +273,14 @@ export default function DashboardPage() {
           </span>
           <div className="h-4 w-px bg-white/20" />
           <button
-            onClick={() => setSelectedIds(new Set())}
+            onClick={() => { setSelectedIds(new Set()); setConfirmingDelete(false); }}
             className="text-[13px] text-white/70 hover:text-white transition-colors"
           >
             Clear
           </button>
           <button
             onClick={() => handleBulkExport(false)}
-            disabled={exporting}
+            disabled={exporting || deleting}
             className="flex items-center gap-1.5 bg-white/10 text-white text-[13px] font-medium rounded-md px-2.5 py-1 hover:bg-white/20 disabled:opacity-50 transition-colors"
           >
             <Download className="w-3 h-3" />
@@ -259,12 +288,44 @@ export default function DashboardPage() {
           </button>
           <button
             onClick={() => handleBulkExport(true)}
-            disabled={exporting}
+            disabled={exporting || deleting}
             className="flex items-center gap-1.5 bg-[#2383e2] text-white text-[13px] font-medium rounded-md px-2.5 py-1 hover:bg-[#1a73d4] disabled:opacity-50 transition-colors"
           >
             <Sparkles className="w-3 h-3" />
             Export for Klaviyo
           </button>
+          <div className="h-4 w-px bg-white/20" />
+          {confirmingDelete ? (
+            <>
+              <span className="text-[12px] text-white/70">
+                Delete {selectedIds.size} {selectedIds.size === 1 ? "search" : "searches"}?
+              </span>
+              <button
+                onClick={() => setConfirmingDelete(false)}
+                disabled={deleting}
+                className="text-[13px] text-white/70 hover:text-white disabled:opacity-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={deleting}
+                className="flex items-center gap-1.5 bg-[#eb5757] text-white text-[13px] font-medium rounded-md px-2.5 py-1 hover:bg-[#d94949] disabled:opacity-50 transition-colors"
+              >
+                {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                Confirm delete
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setConfirmingDelete(true)}
+              className="flex items-center gap-1.5 text-[13px] text-white/70 hover:text-[#eb5757] transition-colors"
+              title="Delete selected searches"
+            >
+              <Trash2 className="w-3 h-3" />
+              Delete
+            </button>
+          )}
         </div>
       )}
     </div>
