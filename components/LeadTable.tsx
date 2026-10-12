@@ -58,6 +58,7 @@ interface Lead {
 
 interface LeadTableProps {
   leads: Lead[];
+  projectId: string;
   projectName: string;
   total: number;
   page: number;
@@ -70,8 +71,24 @@ interface LeadTableProps {
 type SortKey = keyof Lead;
 type SortDir = "asc" | "desc";
 
+// fetch that aborts after `ms` so one hung request can't freeze a long run.
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  ms: number
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export default function LeadTable({
   leads,
+  projectId,
   projectName,
   total,
   page,
@@ -81,6 +98,9 @@ export default function LeadTable({
   onLeadsDelete,
 }: LeadTableProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // When true, actions target every lead in the project, not just the current
+  // page's selection — set via the "select all N results" banner.
+  const [allMode, setAllMode] = useState(false);
   const [search, setSearch] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
@@ -129,6 +149,7 @@ export default function LeadTable({
   }, []);
 
   const toggleAll = useCallback(() => {
+    setAllMode(false);
     setSelected((prev) => {
       if (prev.size === filtered.length) return new Set();
       return new Set(filtered.map((l) => l.id));
@@ -136,6 +157,7 @@ export default function LeadTable({
   }, [filtered]);
 
   const toggleRow = useCallback((id: string) => {
+    setAllMode(false);
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -143,6 +165,16 @@ export default function LeadTable({
       return next;
     });
   }, []);
+
+  // Resolve the leads an action should target: every lead in the project when
+  // "select all results" is active, otherwise the current page's selection.
+  const resolveTargetLeads = useCallback(async (): Promise<Lead[]> => {
+    if (!allMode) return filtered.filter((l) => selected.has(l.id));
+    const res = await fetch(`/api/projects/${projectId}/leads?all=true`);
+    if (!res.ok) throw new Error("Could not load all results");
+    const data = await res.json();
+    return (data.leads || []) as Lead[];
+  }, [allMode, filtered, selected, projectId]);
 
   // Leads (within the current filter) that still have no email entered.
   const missingEmail = useMemo(
@@ -162,9 +194,7 @@ export default function LeadTable({
     async (exportAll: boolean, klaviyo = false) => {
       setExporting(true);
       try {
-        const toExport = exportAll
-          ? filtered
-          : filtered.filter((l) => selected.has(l.id));
+        const toExport = exportAll ? filtered : await resolveTargetLeads();
         const res = await fetch("/api/export-csv", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -188,16 +218,24 @@ export default function LeadTable({
         setExporting(false);
       }
     },
-    [filtered, selected, projectName]
+    [filtered, resolveTargetLeads, projectName]
   );
 
   const handleHunter = useCallback(async () => {
-    const targets = filtered.filter((l) => selected.has(l.id) && l.domain);
-    if (targets.length === 0) {
-      toast.error("Select leads with a domain first");
+    setHunting(true);
+    let targets: Lead[];
+    try {
+      targets = (await resolveTargetLeads()).filter((l) => l.domain);
+    } catch (e) {
+      setHunting(false);
+      toast.error(e instanceof Error ? e.message : "Could not load leads");
       return;
     }
-    setHunting(true);
+    if (targets.length === 0) {
+      setHunting(false);
+      toast.error("No selected leads have a website to search");
+      return;
+    }
     setHuntProgress({ done: 0, total: targets.length });
     let verifiedFound = 0;
     let unverifiedOnly = 0;
@@ -206,11 +244,11 @@ export default function LeadTable({
     for (let i = 0; i < targets.length; i++) {
       const lead = targets[i];
       try {
-        const res = await fetch("/api/hunter/find-and-verify", {
+        const res = await fetchWithTimeout("/api/hunter/find-and-verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ domain: lead.domain }),
-        });
+        }, 90000);
         if (!res.ok) {
           const err = await res.json().catch(() => ({ error: "Hunter error" }));
           throw new Error(err.error || "Hunter error");
@@ -284,12 +322,22 @@ export default function LeadTable({
     } else {
       toast.info("No emails found for any selected domain");
     }
-  }, [filtered, selected, onLeadUpdate]);
+  }, [resolveTargetLeads, onLeadUpdate]);
 
   const handleDelete = useCallback(async () => {
-    const ids = Array.from(selected);
-    if (ids.length === 0) return;
     setDeleting(true);
+    let ids: string[];
+    try {
+      ids = (await resolveTargetLeads()).map((l) => l.id);
+    } catch (e) {
+      setDeleting(false);
+      toast.error(e instanceof Error ? e.message : "Could not load leads");
+      return;
+    }
+    if (ids.length === 0) {
+      setDeleting(false);
+      return;
+    }
     try {
       const res = await fetch("/api/leads/bulk-delete", {
         method: "POST",
@@ -300,6 +348,7 @@ export default function LeadTable({
       const data = await res.json();
       onLeadsDelete?.(ids);
       setSelected(new Set());
+      setAllMode(false);
       setConfirmingDelete(false);
       toast.success(`Deleted ${data.deleted} ${data.deleted === 1 ? "lead" : "leads"}`);
     } catch (e) {
@@ -307,7 +356,7 @@ export default function LeadTable({
     } finally {
       setDeleting(false);
     }
-  }, [selected, onLeadsDelete]);
+  }, [resolveTargetLeads, onLeadsDelete]);
 
   const SortIcon = ({ col }: { col: SortKey }) => {
     if (sortKey !== col)
@@ -389,6 +438,42 @@ export default function LeadTable({
           </button>
         </div>
       </div>
+
+      {/* Select-all-across-project banner */}
+      {filtered.length > 0 &&
+        selected.size === filtered.length &&
+        total > filtered.length && (
+          <div className="mb-2 flex items-center justify-center gap-2 bg-[#fbf3db] border border-[#f0e2b6] rounded-md px-3 py-2 text-[12px] text-[#5c4813]">
+            {allMode ? (
+              <>
+                <span>
+                  All <span className="font-semibold tabular-nums">{total}</span> results in this project are selected.
+                </span>
+                <button
+                  onClick={() => {
+                    setAllMode(false);
+                    setSelected(new Set());
+                  }}
+                  className="font-medium text-[#2383e2] hover:underline"
+                >
+                  Clear selection
+                </button>
+              </>
+            ) : (
+              <>
+                <span>
+                  All <span className="font-semibold tabular-nums">{filtered.length}</span> on this page selected.
+                </span>
+                <button
+                  onClick={() => setAllMode(true)}
+                  className="font-medium text-[#2383e2] hover:underline"
+                >
+                  Select all {total} results in this project
+                </button>
+              </>
+            )}
+          </div>
+        )}
 
       {/* Table */}
       <div className="border-t border-b border-[#ebebea]">
@@ -557,13 +642,14 @@ export default function LeadTable({
       {selected.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#37352f] rounded-xl px-4 py-2.5 flex items-center gap-4 notion-shadow z-30 animate-fade-in">
           <span className="text-[13px] text-white">
-            <span className="font-semibold">{selected.size}</span>
+            <span className="font-semibold tabular-nums">{allMode ? total : selected.size}</span>
             <span className="text-white/60 ml-1">selected</span>
           </span>
           <div className="h-4 w-px bg-white/20" />
           <button
             onClick={() => {
               setSelected(new Set());
+              setAllMode(false);
               setConfirmingDelete(false);
             }}
             className="text-[13px] text-white/70 hover:text-white transition-colors"
@@ -599,7 +685,7 @@ export default function LeadTable({
           <div className="h-4 w-px bg-white/20" />
           {confirmingDelete ? (
             <>
-              <span className="text-[12px] text-white/70">Delete {selected.size}?</span>
+              <span className="text-[12px] text-white/70">Delete {allMode ? total : selected.size}?</span>
               <button
                 onClick={() => setConfirmingDelete(false)}
                 disabled={deleting}

@@ -157,6 +157,7 @@ export default function ResultsPage() {
       ) : (
         <LeadTable
           leads={leads}
+          projectId={id}
           projectName={project.name}
           total={total}
           page={page}

@@ -4,6 +4,17 @@ import prisma from "@/lib/prisma";
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { searchParams } = new URL(req.url);
+
+    // all=true returns every lead in the project (no pagination), used to drive
+    // project-wide actions like "find emails for all results".
+    if (searchParams.get("all") === "true") {
+      const leads = await prisma.lead.findMany({
+        where: { projectId: params.id },
+        orderBy: { name: "asc" },
+      });
+      return NextResponse.json({ leads, total: leads.length });
+    }
+
     const page = parseInt(searchParams.get("page") || "1");
     const limit = 50;
     const skip = (page - 1) * limit;
